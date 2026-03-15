@@ -23,6 +23,6 @@ export default defineConfig(({ mode }) => {
         }
       }
     },
-    logLevel: 'error',
+    logLevel: 'info',
   };
 });
