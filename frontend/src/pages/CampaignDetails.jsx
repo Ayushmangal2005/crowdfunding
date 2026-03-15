@@ -325,7 +325,7 @@ const CampaignDetails = () => {
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Backers ({campaign.backers.length})
+                Backers ({campaign.backers?.length || 0})
               </button>
             </nav>
           </div>
@@ -366,7 +366,7 @@ const CampaignDetails = () => {
                       <Users className="h-5 w-5 text-blue-600 mr-3" />
                       <div>
                         <div className="font-medium text-gray-900">Backers</div>
-                        <div className="text-gray-600">{campaign.backers.length} supporters</div>
+                        <div className="text-gray-600">{campaign.backers?.length || 0} supporters</div>
                       </div>
                     </div>
                   </div>
@@ -377,7 +377,7 @@ const CampaignDetails = () => {
             {activeTab === 'backers' && (
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">Backers</h3>
-                {campaign.backers.length > 0 ? (
+                {(campaign.backers?.length || 0) > 0 ? (
                   <div className="space-y-4">
                     {campaign.backers.map((backer, index) => (
                       <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -386,7 +386,7 @@ const CampaignDetails = () => {
                             <User className="h-5 w-5 text-blue-600" />
                           </div>
                           <div className="ml-3">
-                            <div className="font-medium text-gray-900">{backer.investor.name}</div>
+                            <div className="font-medium text-gray-900">{backer.investor?.name || 'Anonymous'}</div>
                             <div className="text-sm text-gray-500">
                               {new Date(backer.date).toLocaleDateString()}
                             </div>
