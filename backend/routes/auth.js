@@ -107,25 +107,11 @@ router.get('/me', auth, async (req, res) => {
 // Update profile
 router.put('/profile', auth, async (req, res) => {
   try {
-    const { name, email, company, bio } = req.body;
-    
-    // Check if email is already taken by another user
-    if (email !== req.user.email) {
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        return res.status(400).json({ message: 'Email already exists' });
-      }
-    }
+    const { company, bio } = req.body;
 
-    // Update user fields
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
-      {
-        name,
-        email,
-        company,
-        bio
-      },
+      { company, bio },
       { new: true, runValidators: true }
     );
 

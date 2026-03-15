@@ -14,6 +14,7 @@ import CampaignDetails from './pages/CampaignDetails';
 import AdminDashboard from './pages/AdminDashboard';
 import Chat from './pages/Chat';
 import Profile from './pages/Profile';
+import EditCampaign from './pages/EditCampaign';
 
 
 function PrivateRoute({ children }) {
@@ -79,6 +80,7 @@ function App() {
                       </PrivateRoute>
                     } />
                     <Route path="/campaign/:id" element={<CampaignDetails />} />
+                    <Route path="/edit-campaign/:id" element={<PrivateRoute><EditCampaign /></PrivateRoute>} />
                     <Route path="/chat" element={
                       <PrivateRoute>
                         <Chat />

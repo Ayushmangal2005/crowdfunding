@@ -27,7 +27,7 @@ const investmentSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    default: 'stripe'
+    default: 'cashfree'
   }
 }, {
   timestamps: true

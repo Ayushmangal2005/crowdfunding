@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSnackbar } from '../context/SnackbarContext';
 import axios from 'axios';
@@ -20,6 +20,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 const Dashboard = () => {
   const { user } = useAuth();
   const { showSuccess, showError } = useSnackbar();
+  const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState([]);
   const [investments, setInvestments] = useState([]);
   const [stats, setStats] = useState({});
@@ -65,9 +66,9 @@ const Dashboard = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
     }).format(amount);
   };
 
@@ -85,7 +86,7 @@ const Dashboard = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user.name}!
+            Welcome, {user.name}!
           </h1>
           <p className="mt-2 text-gray-600">
             {user.role === 'startup' 
@@ -184,7 +185,7 @@ const Dashboard = () => {
                       <div className="flex justify-between items-start mb-4">
                         <h3 className="text-xl font-semibold text-gray-900">{campaign.title}</h3>
                         <div className="flex space-x-2">
-                          <button className="text-blue-600 hover:text-blue-700">
+                          <button onClick={() => navigate(`/edit-campaign/${campaign._id}`)} className="text-blue-600 hover:text-blue-700">
                             <Edit className="h-5 w-5" />
                           </button>
                           <button 
@@ -201,7 +202,7 @@ const Dashboard = () => {
                       <div className="mb-4">
                         <div className="flex justify-between text-sm text-gray-600 mb-1">
                           <span>Progress</span>
-                          <span>{Math.round(calculateProgress(campaign.raisedAmount, campaign.goalAmount))}%</span>
+                          <span>{(() => { const p = calculateProgress(campaign.raisedAmount, campaign.goalAmount); return p > 0 && p < 1 ? p.toFixed(1) : Math.round(p); })()}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div 
@@ -300,7 +301,7 @@ const Dashboard = () => {
                       <div className="mb-4">
                         <div className="flex justify-between text-sm text-gray-600 mb-1">
                           <span>Progress</span>
-                          <span>{Math.round(calculateProgress(campaign.raisedAmount, campaign.goalAmount))}%</span>
+                          <span>{(() => { const p = calculateProgress(campaign.raisedAmount, campaign.goalAmount); return p > 0 && p < 1 ? p.toFixed(1) : Math.round(p); })()}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div 

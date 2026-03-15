@@ -52,9 +52,9 @@ const Home = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
     }).format(amount);
   };
 
@@ -129,7 +129,7 @@ const Home = () => {
                     <div className="mb-4">
                       <div className="flex justify-between text-sm text-gray-600 mb-1">
                         <span>Progress</span>
-                        <span>{Math.round(calculateProgress(campaign.raisedAmount, campaign.goalAmount))}%</span>
+                        <span>{(() => { const p = calculateProgress(campaign.raisedAmount, campaign.goalAmount); return p > 0 && p < 1 ? p.toFixed(1) : Math.round(p); })()}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
@@ -157,7 +157,7 @@ const Home = () => {
                       </div>
                       <div className="flex items-center">
                         <Target className="h-4 w-4 mr-1" />
-                        <span>{campaign.backers || 0} backers</span>
+                        <span>{campaign.backers?.length || 0} backers</span>
                       </div>
                     </div>
 

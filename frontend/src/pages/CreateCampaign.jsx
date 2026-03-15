@@ -3,22 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSnackbar } from '../context/SnackbarContext';
 import axios from 'axios';
-import { 
-  Upload, 
-  X, 
-  DollarSign, 
-  Calendar, 
+import { load } from '@cashfreepayments/cashfree-js';
+import {
+  DollarSign,
+  Calendar,
   Target,
   FileText,
-  Image,
   Tag
 } from 'lucide-react';
+
+const CASHFREE_MODE = import.meta.env.VITE_CASHFREE_ENV || 'sandbox';
 
 const CreateCampaign = () => {
   const { user } = useAuth();
   const { showSuccess, showError } = useSnackbar();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [feeModal, setFeeModal] = useState(null); // { orderId, paymentSessionId, fee }
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -28,84 +29,81 @@ const CreateCampaign = () => {
     images: []
   });
 
-  const categories = [
-    'Technology',
-    'Health',
-    'Education',
-    'Environment',
-    'Arts',
-    'Social',
-    'Other'
-  ];
+  const categories = ['Technology', 'Health', 'Education', 'Environment', 'Arts', 'Social', 'Other'];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const validate = () => {
+    if (!formData.title.trim()) { showError('Campaign title is required'); return false; }
+    if (!formData.description.trim()) { showError('Campaign description is required'); return false; }
+    if (!formData.goalAmount) { showError('Funding goal is required'); return false; }
+    if (parseInt(formData.goalAmount) < 1000) { showError('Minimum goal amount is ₹1,000'); return false; }
+    if (!formData.deadline) { showError('Campaign deadline is required'); return false; }
+    const deadline = new Date(formData.deadline);
+    const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    if (deadline <= new Date()) { showError('Deadline must be in the future'); return false; }
+    if (deadline < thirtyDaysFromNow) { showError('Deadline must be at least 30 days from now'); return false; }
+    return true;
+  };
+
+  // Step 1: validate form and create fee order
   const handleSubmit = async () => {
+    if (!validate()) return;
     setLoading(true);
-
     try {
-      // Validate form using snackbar
-      if (!formData.title.trim()) {
-        showError('Campaign title is required');
-        return;
-      }
-
-      if (!formData.description.trim()) {
-        showError('Campaign description is required');
-        return;
-      }
-
-      if (!formData.goalAmount) {
-        showError('Funding goal is required');
-        return;
-      }
-
-      if (parseInt(formData.goalAmount) < 1000) {
-        showError('Minimum goal amount is $1,000');
-        return;
-      }
-
-      if (!formData.deadline) {
-        showError('Campaign deadline is required');
-        return;
-      }
-
-      const deadline = new Date(formData.deadline);
-      const now = new Date();
-      const thirtyDaysFromNow = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
-
-      if (deadline <= now) {
-        showError('Deadline must be in the future');
-        return;
-      }
-
-      if (deadline < thirtyDaysFromNow) {
-        showError('Deadline must be at least 30 days from now');
-        return;
-      }
-
-      const response = await axios.post('/api/campaigns', {
-        ...formData,
-        goalAmount: parseInt(formData.goalAmount)
+      const { data } = await axios.post('/api/campaigns/create-order', {
+        goalAmount: parseInt(formData.goalAmount),
       });
-
-      showSuccess('Campaign created successfully!');
-      navigate(`/campaign/${response.data._id}`);
+      setFeeModal(data); // show fee confirmation modal
     } catch (error) {
-      console.error('Create campaign error:', error);
-      showError(error.response?.data?.message || 'Failed to create campaign');
+      showError(error.response?.data?.message || 'Failed to initiate payment');
     } finally {
       setLoading(false);
     }
   };
 
-  // Redirect if not a startup
+  // Step 2: open Cashfree and on success create campaign
+  const handlePayAndCreate = async () => {
+    if (!feeModal) return;
+    setLoading(true);
+    try {
+      const cashfree = await load({ mode: CASHFREE_MODE });
+
+      cashfree.checkout({
+        paymentSessionId: feeModal.paymentSessionId,
+        redirectTarget: '_modal',
+      }).then(async (result) => {
+        if (result.error) {
+          showError(result.error.message || 'Payment failed');
+          setLoading(false);
+          return;
+        }
+
+        if (result.paymentDetails || result.redirect) {
+          try {
+            const response = await axios.post('/api/campaigns', {
+              ...formData,
+              goalAmount: parseInt(formData.goalAmount),
+              orderId: feeModal.orderId,
+            });
+            showSuccess('Campaign created successfully!');
+            setFeeModal(null);
+            navigate(`/campaign/${response.data._id}`);
+          } catch (err) {
+            showError(err.response?.data?.message || 'Failed to create campaign after payment');
+          }
+          setLoading(false);
+        }
+      });
+    } catch (error) {
+      showError('Payment failed. Please try again.');
+      setLoading(false);
+    }
+  };
+
   if (user?.role !== 'startup') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -179,9 +177,7 @@ const CreateCampaign = () => {
                     onChange={handleChange}
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {categories.map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
               </div>
@@ -197,7 +193,7 @@ const CreateCampaign = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label htmlFor="goalAmount" className="block text-sm font-medium text-gray-700 mb-2">
-                    Funding Goal (USD) *
+                    Funding Goal (₹) *
                   </label>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -211,7 +207,7 @@ const CreateCampaign = () => {
                       placeholder="50000"
                     />
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">Minimum goal: $1,000</p>
+                  <p className="text-sm text-gray-500 mt-1">Minimum goal: ₹1,000</p>
                 </div>
 
                 <div>
@@ -238,25 +234,34 @@ const CreateCampaign = () => {
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-gray-900">Campaign Preview</h2>
               <div className="border border-gray-200 rounded-lg p-6 bg-gray-50">
-                <div className="mb-4">
-                  <div className="h-48 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg mb-4"></div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {formData.title || 'Your Campaign Title'}
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    {formData.description || 'Your campaign description will appear here...'}
-                  </p>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      {formData.category}
-                    </span>
-                    <span className="text-gray-500">
-                      Goal: ${formData.goalAmount ? parseInt(formData.goalAmount).toLocaleString() : '0'}
-                    </span>
-                  </div>
+                <div className="h-48 bg-gradient-to-br from-blue-400 to-purple-500 rounded-lg mb-4"></div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  {formData.title || 'Your Campaign Title'}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {formData.description || 'Your campaign description will appear here...'}
+                </p>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">{formData.category}</span>
+                  <span className="text-gray-500">
+                    Goal: ₹{formData.goalAmount ? parseInt(formData.goalAmount).toLocaleString() : '0'}
+                  </span>
                 </div>
               </div>
             </div>
+
+            {/* Platform fee notice */}
+            {formData.goalAmount && parseInt(formData.goalAmount) >= 1000 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <span className="font-semibold">Platform fee:</span> A one-time fee of{' '}
+                  <span className="font-semibold">
+                    ₹{Math.ceil(parseInt(formData.goalAmount) * 0.05).toLocaleString()}
+                  </span>{' '}
+                  (5% of goal) is required to publish your campaign.
+                </p>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex items-center justify-between pt-6 border-t border-gray-200">
@@ -273,12 +278,51 @@ const CreateCampaign = () => {
                 disabled={loading}
                 className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Creating...' : 'Create Campaign'}
+                {loading ? 'Processing...' : 'Create Campaign'}
               </button>
             </div>
           </form>
         </div>
       </div>
+
+      {/* Fee Confirmation Modal */}
+      {feeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Platform Fee Required</h3>
+            <p className="text-gray-600 mb-6">
+              To publish your campaign, a one-time platform fee is charged.
+            </p>
+
+            <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Funding Goal</span>
+                <span className="font-medium">₹{parseInt(formData.goalAmount).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Platform Fee (5%)</span>
+                <span className="font-semibold text-blue-600">₹{feeModal.fee.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setFeeModal(null); setLoading(false); }}
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePayAndCreate}
+                disabled={loading}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50"
+              >
+                {loading ? 'Processing...' : `Pay ₹${feeModal.fee.toLocaleString()} & Create`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

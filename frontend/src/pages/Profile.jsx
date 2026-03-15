@@ -54,28 +54,13 @@ const Profile = () => {
     
     console.log('Submitting form data:', formData);
     
-    // Basic validation using snackbar
-    if (!formData.name.trim()) {
-      showError('Full name is required');
-      return;
-    }
-    
-    if (!formData.email.trim()) {
-      showError('Email is required');
-      return;
-    }
-    
-    // Email format validation
-    if (!validateEmail(formData.email)) {
-      showError('Please enter a valid email address');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      console.log('Sending request to update profile...');
-      const response = await axios.put(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/profile`, formData);
+      const response = await axios.put(`${import.meta.env.VITE_SERVER_URL}/api/auth/profile`, {
+        bio: formData.bio,
+        company: formData.company,
+      });
       console.log('Profile update response:', response.data);
       showSuccess('Profile updated successfully!');
       setEditing(false);
@@ -102,9 +87,9 @@ const Profile = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
     }).format(amount);
   };
 
@@ -233,35 +218,26 @@ const Profile = () => {
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                      Full Name
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                       <input
                         type="text"
-                        id="name"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={user.name}
+                        readOnly
+                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                       />
                     </div>
                   </div>
-
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                      Email Address
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                       <input
                         type="text"
-                        id="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={user.email}
+                        readOnly
+                        className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
                       />
                     </div>
                   </div>

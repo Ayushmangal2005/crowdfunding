@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSnackbar } from '../context/SnackbarContext';
 import axios from 'axios';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { 
-  Calendar, 
-  DollarSign, 
-  Users, 
-  Target, 
+import { load } from '@cashfreepayments/cashfree-js';
+import {
+  Calendar,
+  DollarSign,
+  Users,
+  Target,
   MessageCircle,
   Share2,
   Heart,
@@ -21,53 +20,58 @@ import {
 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_your_publishable_key_here');
+const CASHFREE_MODE = import.meta.env.VITE_CASHFREE_ENV || 'sandbox';
 
 const InvestmentForm = ({ campaign, onSuccess }) => {
   const [amount, setAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const { showSuccess, showError } = useSnackbar();
-  const stripe = useStripe();
-  const elements = useElements();
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    
-    if (!stripe || !elements || !amount) return;
+    if (!amount || parseInt(amount) < 1) return;
 
     setLoading(true);
 
     try {
-      // Create payment intent
-      const { data } = await axios.post('/api/investments/create-payment-intent', {
+      // Step 1: Create order on backend
+      const { data } = await axios.post('/api/investments/create-order', {
         amount: parseInt(amount),
-        campaignId: campaign._id
+        campaignId: campaign._id,
       });
 
-      // Confirm payment
-      const result = await stripe.confirmCardPayment(data.clientSecret, {
-        payment_method: {
-          card: elements.getElement(CardElement),
+      // Step 2: Load Cashfree SDK and open checkout
+      const cashfree = await load({ mode: CASHFREE_MODE });
+
+      cashfree.checkout({
+        paymentSessionId: data.paymentSessionId,
+        redirectTarget: '_modal',
+      }).then(async (result) => {
+        if (result.error) {
+          showError(result.error.message || 'Payment failed');
+          setLoading(false);
+          return;
+        }
+
+        if (result.paymentDetails || result.redirect) {
+          // Step 3: Verify payment on backend
+          try {
+            await axios.post('/api/investments/verify-payment', {
+              orderId: data.orderId,
+              campaignId: campaign._id,
+              amount: parseInt(amount),
+            });
+            showSuccess('Investment successful!');
+            onSuccess();
+          } catch (err) {
+            showError('Payment done but verification failed. Contact support.');
+          }
+          setLoading(false);
         }
       });
-
-      if (result.error) {
-        showError(result.error.message);
-      } else {
-        // Payment succeeded
-        await axios.post('/api/investments/confirm-payment', {
-          paymentIntentId: result.paymentIntent.id,
-          campaignId: campaign._id,
-          amount: parseInt(amount)
-        });
-
-        showSuccess('Investment successful!');
-        onSuccess();
-      }
     } catch (error) {
       showError('Payment failed. Please try again.');
       console.error('Payment error:', error);
-    } finally {
       setLoading(false);
     }
   };
@@ -76,47 +80,25 @@ const InvestmentForm = ({ campaign, onSuccess }) => {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Investment Amount ($)
+          Investment Amount (₹)
         </label>
         <input
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           min="1"
-          max={campaign.goalAmount - campaign.raisedAmount}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="Enter amount"
           required
         />
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Card Details
-        </label>
-        <div className="p-4 border border-gray-300 rounded-lg">
-          <CardElement 
-            options={{
-              style: {
-                base: {
-                  fontSize: '16px',
-                  color: '#424770',
-                  '::placeholder': {
-                    color: '#aab7c4',
-                  },
-                },
-              },
-            }}
-          />
-        </div>
-      </div>
-
       <button
         type="submit"
-        disabled={!stripe || loading}
+        disabled={loading}
         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {loading ? 'Processing...' : `Invest $${amount || 0}`}
+        {loading ? 'Processing...' : `Invest ₹${amount || 0}`}
       </button>
     </form>
   );
@@ -124,13 +106,32 @@ const InvestmentForm = ({ campaign, onSuccess }) => {
 
 const CampaignDetails = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { showError } = useSnackbar();
+  const { showError, showSuccess } = useSnackbar();
   const navigate = useNavigate();
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showInvestModal, setShowInvestModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+
+  // Handle redirect-back from Cashfree (for non-modal payment methods)
+  useEffect(() => {
+    const orderId = searchParams.get('order_id');
+    const campaignId = searchParams.get('campaign_id');
+    const amount = searchParams.get('amount');
+    if (orderId && campaignId && amount && user) {
+      axios.post('/api/investments/verify-payment', {
+        orderId,
+        campaignId,
+        amount: parseInt(amount),
+      }).then(() => {
+        showSuccess('Investment successful!');
+      }).catch(() => {
+        showError('Payment verification failed.');
+      });
+    }
+  }, [user]);
 
   useEffect(() => {
     fetchCampaign();
@@ -180,9 +181,9 @@ const CampaignDetails = () => {
   };
 
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
     }).format(amount);
   };
 
@@ -222,7 +223,7 @@ const CampaignDetails = () => {
                 </div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-4">{campaign.title}</h1>
                 <p className="text-lg text-gray-600 mb-6">{campaign.description}</p>
-                
+
                 <div className="flex items-center space-x-6 text-sm text-gray-600">
                   <div className="flex items-center">
                     <Building className="h-4 w-4 mr-2" />
@@ -247,11 +248,11 @@ const CampaignDetails = () => {
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-sm font-medium text-gray-600">Funding Progress</span>
                     <span className="text-sm font-medium text-gray-900">
-                      {Math.round(calculateProgress())}%
+                      {calculateProgress() > 0 && calculateProgress() < 1 ? calculateProgress().toFixed(1) : Math.round(calculateProgress())}%
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div 
+                    <div
                       className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
                       style={{ width: `${calculateProgress()}%` }}
                     ></div>
@@ -274,11 +275,11 @@ const CampaignDetails = () => {
                 </div>
               </div>
 
-              <div className="lg:col-span-1">
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Take Action</h3>
-                  <div className="space-y-4">
-                    {user && user.role === 'investor' && (
+              {user && user.role === 'investor' && (
+                <div className="lg:col-span-1">
+                  <div className="bg-gray-50 rounded-lg p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Take Action</h3>
+                    <div className="space-y-4">
                       <button
                         onClick={() => setShowInvestModal(true)}
                         className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
@@ -286,9 +287,6 @@ const CampaignDetails = () => {
                         <DollarSign className="inline h-5 w-5 mr-2" />
                         Invest Now
                       </button>
-                    )}
-                    
-                    {user && user._id !== campaign.creator._id && (
                       <button
                         onClick={handleStartChat}
                         className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
@@ -296,20 +294,10 @@ const CampaignDetails = () => {
                         <MessageCircle className="inline h-5 w-5 mr-2" />
                         Start Chat
                       </button>
-                    )}
-
-                    <button className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
-                      <Share2 className="inline h-5 w-5 mr-2" />
-                      Share
-                    </button>
-
-                    <button className="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
-                      <Heart className="inline h-5 w-5 mr-2" />
-                      Save
-                    </button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -328,16 +316,7 @@ const CampaignDetails = () => {
               >
                 Overview
               </button>
-              <button
-                onClick={() => setActiveTab('updates')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'updates'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Updates
-              </button>
+
               <button
                 onClick={() => setActiveTab('backers')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -380,7 +359,7 @@ const CampaignDetails = () => {
                       <TrendingUp className="h-5 w-5 text-blue-600 mr-3" />
                       <div>
                         <div className="font-medium text-gray-900">Progress</div>
-                        <div className="text-gray-600">{Math.round(calculateProgress())}% funded</div>
+                        <div className="text-gray-600">{calculateProgress() > 0 && calculateProgress() < 1 ? calculateProgress().toFixed(1) : Math.round(calculateProgress())}% funded</div>
                       </div>
                     </div>
                     <div className="flex items-center">
@@ -392,29 +371,6 @@ const CampaignDetails = () => {
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {activeTab === 'updates' && (
-              <div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">Project Updates</h3>
-                {campaign.updates && campaign.updates.length > 0 ? (
-                  <div className="space-y-6">
-                    {campaign.updates.map((update, index) => (
-                      <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold text-gray-900">{update.title}</h4>
-                          <span className="text-sm text-gray-500">
-                            {new Date(update.date).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className="text-gray-600">{update.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500">No updates available yet.</p>
-                )}
               </div>
             )}
 
@@ -461,22 +417,19 @@ const CampaignDetails = () => {
                 onClick={() => setShowInvestModal(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <span className="sr-only">Close</span>
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <Elements stripe={stripePromise}>
-              <InvestmentForm 
-                campaign={campaign} 
-                onSuccess={() => {
-                  setShowInvestModal(false);
-                  fetchCampaign();
-                }}
-              />
-            </Elements>
+            <InvestmentForm
+              campaign={campaign}
+              onSuccess={() => {
+                setShowInvestModal(false);
+                fetchCampaign();
+              }}
+            />
           </div>
         </div>
       )}
