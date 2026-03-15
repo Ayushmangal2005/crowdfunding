@@ -227,11 +227,11 @@ const CampaignDetails = () => {
                 <div className="flex items-center space-x-6 text-sm text-gray-600">
                   <div className="flex items-center">
                     <Building className="h-4 w-4 mr-2" />
-                    <span>{campaign.creator.company}</span>
+                    <span>{campaign.creator?.company}</span>
                   </div>
                   <div className="flex items-center">
                     <User className="h-4 w-4 mr-2" />
-                    <span>{campaign.creator.name}</span>
+                    <span>{campaign.creator?.name}</span>
                   </div>
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-2" />

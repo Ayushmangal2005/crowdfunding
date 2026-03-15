@@ -43,7 +43,7 @@ const Home = () => {
 
   const fetchStats = async () => {
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const API_URL = import.meta.env.VITE_SERVER_URL;
       const response = await axios.get(`${API_URL}/api/stats`);
       setStats(response.data);
     } catch (error) {
