@@ -5,7 +5,7 @@ import { useSnackbar } from '../context/SnackbarContext';
 import axios from 'axios';
 import { load } from '@cashfreepayments/cashfree-js';
 import {
-  DollarSign,
+  IndianRupee,
   Calendar,
   Target,
   FileText,
@@ -186,7 +186,7 @@ const CreateCampaign = () => {
             {/* Funding Information */}
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-                <DollarSign className="h-5 w-5 mr-2" />
+                <IndianRupee className="h-5 w-5 mr-2" />
                 Funding Information
               </h2>
 
@@ -196,7 +196,7 @@ const CreateCampaign = () => {
                     Funding Goal (₹) *
                   </label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <IndianRupee className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                     <input
                       type="number"
                       id="goalAmount"
