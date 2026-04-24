@@ -147,4 +147,37 @@ router.put('/campaigns/:id/status', adminAuth, async (req, res) => {
   }
 });
 
+// Get pending startup approvals
+router.get('/pending-startups', adminAuth, async (req, res) => {
+  try {
+    const startups = await User.find({ role: 'startup', approvalStatus: 'pending' })
+      .select('-password')
+      .sort({ createdAt: -1 });
+    res.json(startups);
+  } catch (error) {
+    console.error('Fetch pending startups error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Approve or reject a startup
+router.put('/startups/:id/approval', adminAuth, async (req, res) => {
+  try {
+    const { approvalStatus } = req.body;
+    if (!['approved', 'rejected'].includes(approvalStatus)) {
+      return res.status(400).json({ message: 'Invalid approval status' });
+    }
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { approvalStatus },
+      { new: true }
+    ).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (error) {
+    console.error('Approval update error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 export default router;

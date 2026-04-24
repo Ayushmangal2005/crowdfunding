@@ -24,12 +24,18 @@ router.post('/register', async (req, res) => {
       password,
       role,
       company,
-      bio
+      bio,
+      approvalStatus: role === 'startup' ? 'pending' : 'approved'
     });
 
     await user.save();
 
-    // Generate JWT token
+    // Startups need admin approval — don't issue a token yet
+    if (role === 'startup') {
+      return res.status(201).json({ pendingApproval: true, message: 'Registration successful! Your account is pending admin approval.' });
+    }
+
+    // Generate JWT token for non-startup roles
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: '7d'
     });
@@ -42,7 +48,11 @@ router.post('/register', async (req, res) => {
         email: user.email,
         role: user.role,
         company: user.company,
-        bio: user.bio
+        bio: user.bio,
+        subscription: user.subscription,
+        totalInvested: user.totalInvested,
+        totalRaised: user.totalRaised,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {
@@ -73,6 +83,14 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    // Check startup approval
+    if (user.role === 'startup' && user.approvalStatus === 'pending') {
+      return res.status(403).json({ message: 'Your account is pending admin approval. Please wait for approval before logging in.' });
+    }
+    if (user.role === 'startup' && user.approvalStatus === 'rejected') {
+      return res.status(403).json({ message: 'Your account registration has been rejected. Please contact support.' });
+    }
+
     // Generate JWT token
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: '7d'
@@ -86,7 +104,11 @@ router.post('/login', async (req, res) => {
         email: user.email,
         role: user.role,
         company: user.company,
-        bio: user.bio
+        bio: user.bio,
+        subscription: user.subscription,
+        totalInvested: user.totalInvested,
+        totalRaised: user.totalRaised,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {

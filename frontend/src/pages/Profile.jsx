@@ -3,23 +3,27 @@ import { useAuth } from '../context/AuthContext';
 import { useSnackbar } from '../context/SnackbarContext';
 import { useErrorHandler, validateEmail } from '../utils/errorHandler';
 import axios from 'axios';
-import { 
-  User, 
-  Mail, 
-  Building, 
-  Edit, 
-  Save, 
+import { useNavigate } from 'react-router-dom';
+import {
+  User,
+  Mail,
+  Building,
+  Edit,
+  Save,
   X,
   Camera,
   DollarSign,
   TrendingUp,
-  Users
+  Users,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 
 const Profile = () => {
   const { user, fetchUser } = useAuth();
   const { showSuccess, showError } = useSnackbar();
   const { handleError } = useErrorHandler();
+  const navigate = useNavigate();
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -205,6 +209,48 @@ const Profile = () => {
             </div>
           </div>
         </div>
+
+        {/* Subscription Card — investors and startups */}
+        {['investor', 'startup'].includes(user.role) && (() => {
+          const sub = user.subscription;
+          const isActive = sub?.status === 'active' && sub?.endDate && new Date(sub.endDate) > new Date();
+          const price = user.role === 'startup' ? '₹1500/mo' : '₹999/mo';
+          const inactiveText = user.role === 'startup'
+            ? 'Subscribe to create campaigns'
+            : 'Subscribe to invest in campaigns';
+          return (
+            <div className={`bg-white rounded-xl shadow-sm p-6 mb-8 border-l-4 ${isActive ? 'border-green-500' : 'border-red-400'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {isActive
+                    ? <CheckCircle className="h-6 w-6 text-green-500" />
+                    : <AlertCircle className="h-6 w-6 text-red-400" />}
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {isActive ? 'Subscription Active' : 'No Active Subscription'}
+                    </p>
+                    {isActive ? (
+                      <p className="text-sm text-gray-500">
+                        Started: {new Date(sub.startDate).toLocaleDateString()} &nbsp;·&nbsp;
+                        Expires: <span className="font-medium text-gray-700">{new Date(sub.endDate).toLocaleDateString()}</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-500">{inactiveText}</p>
+                    )}
+                  </div>
+                </div>
+                {!isActive && (
+                  <button
+                    onClick={() => navigate('/subscribe')}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-sm font-medium hover:from-blue-700 hover:to-purple-700 transition-all"
+                  >
+                    Subscribe {price}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Profile Form */}
         <div className="bg-white rounded-xl shadow-sm">

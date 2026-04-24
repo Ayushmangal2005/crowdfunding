@@ -31,6 +31,14 @@ router.post('/create-order', auth, async (req, res) => {
       return res.status(403).json({ message: 'Only investors can make investments' });
     }
 
+    // Check active subscription
+    const investor = await User.findById(req.user._id);
+    const sub = investor.subscription;
+    const hasActiveSub = sub?.status === 'active' && sub?.endDate && new Date(sub.endDate) > new Date();
+    if (!hasActiveSub) {
+      return res.status(403).json({ message: 'subscription_required' });
+    }
+
     const campaign = await Campaign.findById(campaignId);
     if (!campaign) {
       return res.status(404).json({ message: 'Campaign not found' });

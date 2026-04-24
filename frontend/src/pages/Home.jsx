@@ -4,12 +4,9 @@ import axios from 'axios';
 import {
   Rocket,
   Users,
-  DollarSign,
-  TrendingUp,
   ArrowRight,
   Star,
   Calendar,
-  Target,
 } from 'lucide-react';
 
 const Home = () => {
@@ -17,9 +14,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalCampaigns: 0,
-    totalFunded: 0,
     totalUsers: 0,
-    successRate: 0,
   });
 
   useEffect(() => {
@@ -58,10 +53,6 @@ const Home = () => {
     }).format(amount);
   };
 
-  const calculateProgress = (raised, goal) => {
-    return Math.min((raised / goal) * 100, 100);
-  };
-
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
@@ -91,11 +82,9 @@ const Home = () => {
 
       {/* Stats Section */}
       <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-8 text-center max-w-lg mx-auto">
           <StatCard icon={<Rocket className="h-8 w-8 text-blue-600" />} label="Active Campaigns" value={stats.totalCampaigns} color="blue" />
-          <StatCard icon={<DollarSign className="h-8 w-8 text-green-600" />} label="Total Funded" value={formatCurrency(stats.totalFunded)} color="green" />
           <StatCard icon={<Users className="h-8 w-8 text-purple-600" />} label="Community Members" value={stats.totalUsers} color="purple" />
-          <StatCard icon={<TrendingUp className="h-8 w-8 text-orange-600" />} label="Success Rate" value={`${stats.successRate}%`} color="orange" />
         </div>
       </section>
 
@@ -126,38 +115,14 @@ const Home = () => {
                     <h3 className="text-xl font-semibold text-gray-900 mb-2 line-clamp-2">{campaign.title}</h3>
                     <p className="text-gray-600 mb-4 line-clamp-3">{campaign.description}</p>
 
-                    <div className="mb-4">
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>Progress</span>
-                        <span>{(() => { const p = calculateProgress(campaign.raisedAmount, campaign.goalAmount); return p > 0 && p < 1 ? p.toFixed(1) : Math.round(p); })()}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${calculateProgress(campaign.raisedAmount, campaign.goalAmount)}%` }}
-                        />
-                      </div>
-                    </div>
-
                     <div className="flex justify-between items-center mb-4">
                       <div>
-                        <p className="text-sm text-gray-600">Raised</p>
-                        <p className="font-semibold text-lg">{formatCurrency(campaign.raisedAmount)}</p>
-                      </div>
-                      <div className="text-right">
                         <p className="text-sm text-gray-600">Goal</p>
                         <p className="font-semibold text-lg">{formatCurrency(campaign.goalAmount)}</p>
                       </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm text-gray-600 mb-4">
-                      <div className="flex items-center">
+                      <div className="flex items-center text-sm text-gray-600">
                         <Calendar className="h-4 w-4 mr-1" />
                         <span>{new Date(campaign.deadline).toLocaleDateString()}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Target className="h-4 w-4 mr-1" />
-                        <span>{campaign.backers?.length || 0} backers</span>
                       </div>
                     </div>
 

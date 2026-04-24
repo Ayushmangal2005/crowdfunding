@@ -73,7 +73,12 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await axios.post(`${import.meta.env.VITE_SERVER_URL}/api/auth/register`, userData);
-      
+
+      // Startup registration requires admin approval — no token issued yet
+      if (response.data.pendingApproval) {
+        return { pendingApproval: true };
+      }
+
       const { token, user } = response.data;
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -81,12 +86,12 @@ export const AuthProvider = ({ children }) => {
       if (snackbar) {
         snackbar.showSuccess('Registration successful!');
       }
-      return true;
+      return { success: true };
     } catch (error) {
       if (snackbar) {
         snackbar.showError(error.response?.data?.message || 'Registration failed');
       }
-      return false;
+      return { success: false };
     }
   };
 

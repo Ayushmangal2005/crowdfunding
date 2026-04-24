@@ -26,7 +26,8 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState({});
   const [users, setUsers] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [pendingStartups, setPendingStartups] = useState([]);
+  const [activeTab, setActiveTab] = useState('approvals');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -38,15 +39,17 @@ const AdminDashboard = () => {
 
   const fetchAdminData = async () => {
     try {
-      const [statsResponse, usersResponse, campaignsResponse] = await Promise.all([
+      const [statsResponse, usersResponse, campaignsResponse, pendingResponse] = await Promise.all([
         axios.get('/api/admin/stats'),
         axios.get('/api/admin/users'),
-        axios.get('/api/admin/campaigns')
+        axios.get('/api/admin/campaigns'),
+        axios.get('/api/admin/pending-startups')
       ]);
 
       setStats(statsResponse.data);
       setUsers(usersResponse.data.users);
       setCampaigns(campaignsResponse.data.campaigns);
+      setPendingStartups(pendingResponse.data);
     } catch (error) {
       console.error('Error fetching admin data:', error);
       showError('Failed to load admin data');
@@ -63,6 +66,19 @@ const AdminDashboard = () => {
       showSuccess(`User ${isActive ? 'activated' : 'deactivated'} successfully`);
     } catch (error) {
       showError('Failed to update user status');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleApproval = async (userId, approvalStatus) => {
+    setActionLoading(true);
+    try {
+      await axios.put(`/api/admin/startups/${userId}/approval`, { approvalStatus });
+      setPendingStartups(prev => prev.filter(s => s._id !== userId));
+      showSuccess(`Startup ${approvalStatus === 'approved' ? 'approved' : 'rejected'} successfully`);
+    } catch (error) {
+      showError('Failed to update approval status');
     } finally {
       setActionLoading(false);
     }
@@ -154,35 +170,27 @@ const AdminDashboard = () => {
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-xl shadow-sm">
-            <div className="flex items-center">
-              <div className="bg-purple-100 p-3 rounded-lg">
-                <DollarSign className="h-6 w-6 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600">Total Funded</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.stats?.totalFunded || 0)}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-xl shadow-sm">
-            <div className="flex items-center">
-              <div className="bg-orange-100 p-3 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-orange-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-600">Investments</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.stats?.totalInvestments || 0}</p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-sm mb-8">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-8">
+              <button
+                onClick={() => setActiveTab('approvals')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'approvals'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Approvals
+                {pendingStartups.length > 0 && (
+                  <span className="ml-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {pendingStartups.length}
+                  </span>
+                )}
+              </button>
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
@@ -217,6 +225,60 @@ const AdminDashboard = () => {
           </div>
 
           <div className="p-8">
+            {activeTab === 'approvals' && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                  Pending Startup Approvals
+                </h3>
+                {pendingStartups.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-400" />
+                    <p>No pending approvals. All caught up!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingStartups.map((startup) => (
+                      <div key={startup._id} className="flex items-center justify-between p-5 border border-gray-200 rounded-xl bg-gray-50">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                            <Building className="h-5 w-5 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900">{startup.name}</p>
+                            <p className="text-sm text-gray-500">{startup.email}</p>
+                            {startup.company && (
+                              <p className="text-sm text-gray-500">{startup.company}</p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-1">
+                              Registered {new Date(startup.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <button
+                            onClick={() => handleApproval(startup._id, 'approved')}
+                            disabled={actionLoading}
+                            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleApproval(startup._id, 'rejected')}
+                            disabled={actionLoading}
+                            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                          >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {activeTab === 'overview' && (
               <div className="space-y-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -266,13 +328,7 @@ const AdminDashboard = () => {
                           </div>
                           <div className="flex items-center justify-between text-sm text-gray-600">
                             <span>by {campaign.creator.name}</span>
-                            <span>{formatCurrency(campaign.raisedAmount)} / {formatCurrency(campaign.goalAmount)}</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full"
-                              style={{ width: `${Math.min((campaign.raisedAmount / campaign.goalAmount) * 100, 100)}%` }}
-                            ></div>
+                            <span>Goal: {formatCurrency(campaign.goalAmount)}</span>
                           </div>
                         </div>
                       ))}
@@ -430,32 +486,15 @@ const AdminDashboard = () => {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <p className="text-sm text-gray-600">Goal</p>
                           <p className="font-semibold">{formatCurrency(campaign.goalAmount)}</p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-600">Raised</p>
-                          <p className="font-semibold">{formatCurrency(campaign.raisedAmount)}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-600">Progress</p>
-                          <p className="font-semibold">
-                            {Math.round((campaign.raisedAmount / campaign.goalAmount) * 100)}%
-                          </p>
-                        </div>
-                        <div>
                           <p className="text-sm text-gray-600">Created</p>
                           <p className="font-semibold">{new Date(campaign.createdAt).toLocaleDateString()}</p>
                         </div>
-                      </div>
-
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${Math.min((campaign.raisedAmount / campaign.goalAmount) * 100, 100)}%` }}
-                        ></div>
                       </div>
                     </div>
                   ))}

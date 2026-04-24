@@ -22,7 +22,6 @@ const Dashboard = () => {
   const { showSuccess, showError } = useSnackbar();
   const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState([]);
-  const [investments, setInvestments] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
 
@@ -39,9 +38,6 @@ const Dashboard = () => {
         const statsResponse = await axios.get(`${import.meta.env.VITE_SERVER_URL}/api/campaigns/stats/${user._id}`);
         setStats(statsResponse.data);
       } else if (user.role === 'investor') {
-        const investmentsResponse = await axios.get(`${import.meta.env.VITE_SERVER_URL}/api/investments/user/${user._id}`);
-        setInvestments(investmentsResponse.data);
-        
         const campaignsResponse = await axios.get(`${import.meta.env.VITE_SERVER_URL}/api/campaigns`);
         setCampaigns(campaignsResponse.data.campaigns);
       }
@@ -111,41 +107,6 @@ const Dashboard = () => {
               </div>
             </div>
             
-            <div className="bg-white p-6 rounded-xl shadow-sm">
-              <div className="flex items-center">
-                <div className="bg-green-100 p-3 rounded-lg">
-                  <DollarSign className="h-6 w-6 text-green-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Total Raised</p>
-                  <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalRaised || 0)}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white p-6 rounded-xl shadow-sm">
-              <div className="flex items-center">
-                <div className="bg-purple-100 p-3 rounded-lg">
-                  <Users className="h-6 w-6 text-purple-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Total Backers</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.totalBackers || 0}</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white p-6 rounded-xl shadow-sm">
-              <div className="flex items-center">
-                <div className="bg-orange-100 p-3 rounded-lg">
-                  <Target className="h-6 w-6 text-orange-600" />
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Success Rate</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.successRate || 0}%</p>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -199,24 +160,7 @@ const Dashboard = () => {
                       
                       <p className="text-gray-600 mb-4 line-clamp-2">{campaign.description}</p>
 
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm text-gray-600 mb-1">
-                          <span>Progress</span>
-                          <span>{(() => { const p = calculateProgress(campaign.raisedAmount, campaign.goalAmount); return p > 0 && p < 1 ? p.toFixed(1) : Math.round(p); })()}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
-                            style={{ width: `${calculateProgress(campaign.raisedAmount, campaign.goalAmount)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-
                       <div className="flex justify-between items-center mb-4">
-                        <div>
-                          <p className="text-sm text-gray-600">Raised</p>
-                          <p className="font-semibold">{formatCurrency(campaign.raisedAmount)}</p>
-                        </div>
                         <div>
                           <p className="text-sm text-gray-600">Goal</p>
                           <p className="font-semibold">{formatCurrency(campaign.goalAmount)}</p>
@@ -245,33 +189,6 @@ const Dashboard = () => {
         {/* Investor Dashboard */}
         {user.role === 'investor' && (
           <div className="space-y-8">
-            {/* My Investments */}
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">My Investments</h2>
-              {investments.length === 0 ? (
-                <div className="bg-white p-12 rounded-xl shadow-sm text-center">
-                  <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No investments yet</h3>
-                  <p className="text-gray-600">Start investing in innovative startups below</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {investments.map((investment) => (
-                    <div key={investment._id} className="bg-white p-6 rounded-xl shadow-sm">
-                      <h3 className="font-semibold text-gray-900 mb-2">{investment.campaign.title}</h3>
-                      <p className="text-sm text-gray-600 mb-4">Invested: {formatCurrency(investment.amount)}</p>
-                      <Link
-                        to={`/campaign/${investment.campaign._id}`}
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                      >
-                        View Campaign →
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Available Campaigns */}
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Available Campaigns</h2>
@@ -298,27 +215,14 @@ const Dashboard = () => {
                         {campaign.description}
                       </p>
 
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm text-gray-600 mb-1">
-                          <span>Progress</span>
-                          <span>{(() => { const p = calculateProgress(campaign.raisedAmount, campaign.goalAmount); return p > 0 && p < 1 ? p.toFixed(1) : Math.round(p); })()}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
-                            style={{ width: `${calculateProgress(campaign.raisedAmount, campaign.goalAmount)}%` }}
-                          ></div>
-                        </div>
-                      </div>
-
                       <div className="flex justify-between items-center mb-4">
                         <div>
-                          <p className="text-sm text-gray-600">Raised</p>
-                          <p className="font-semibold">{formatCurrency(campaign.raisedAmount)}</p>
-                        </div>
-                        <div className="text-right">
                           <p className="text-sm text-gray-600">Goal</p>
                           <p className="font-semibold">{formatCurrency(campaign.goalAmount)}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm text-gray-600">Deadline</p>
+                          <p className="font-semibold">{new Date(campaign.deadline).toLocaleDateString()}</p>
                         </div>
                       </div>
 

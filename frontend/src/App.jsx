@@ -15,6 +15,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import Chat from './pages/Chat';
 import Profile from './pages/Profile';
 import EditCampaign from './pages/EditCampaign';
+import Subscription from './pages/Subscription';
 
 
 function PrivateRoute({ children }) {
@@ -32,6 +33,25 @@ function PrivateRoute({ children }) {
   return user ? children : <Navigate to="/login" />;
 }
 
+
+function SubscriptionRoute({ children }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user || !['investor', 'startup'].includes(user.role)) return children;
+
+  const sub = user.subscription;
+  const hasActiveSub = sub?.status === 'active' && sub?.endDate && new Date(sub.endDate) > new Date();
+
+  return hasActiveSub ? children : <Navigate to="/subscribe" />;
+}
 
 function AdminRoute({ children }) {
   console.log('Admin route check initiated');
@@ -71,24 +91,41 @@ function App() {
                     <Route path="/register" element={<Register />} />
                     <Route path="/dashboard" element={
                       <PrivateRoute>
-                        <Dashboard />
+                        <SubscriptionRoute>
+                          <Dashboard />
+                        </SubscriptionRoute>
                       </PrivateRoute>
                     } />
                     <Route path="/create-campaign" element={
                       <PrivateRoute>
-                        <CreateCampaign />
+                        <SubscriptionRoute>
+                          <CreateCampaign />
+                        </SubscriptionRoute>
                       </PrivateRoute>
                     } />
-                    <Route path="/campaign/:id" element={<CampaignDetails />} />
+                    <Route path="/campaign/:id" element={
+                      <PrivateRoute>
+                        <SubscriptionRoute>
+                          <CampaignDetails />
+                        </SubscriptionRoute>
+                      </PrivateRoute>
+                    } />
                     <Route path="/edit-campaign/:id" element={<PrivateRoute><EditCampaign /></PrivateRoute>} />
                     <Route path="/chat" element={
                       <PrivateRoute>
-                        <Chat />
+                        <SubscriptionRoute>
+                          <Chat />
+                        </SubscriptionRoute>
                       </PrivateRoute>
                     } />
                     <Route path="/profile" element={
                       <PrivateRoute>
                         <Profile />
+                      </PrivateRoute>
+                    } />
+                    <Route path="/subscribe" element={
+                      <PrivateRoute>
+                        <Subscription />
                       </PrivateRoute>
                     } />
                     

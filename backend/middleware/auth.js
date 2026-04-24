@@ -23,6 +23,22 @@ const auth = async (req, res, next) => {
   }
 };
 
+const requireSubscription = async (req, res, next) => {
+  try {
+    await auth(req, res, () => {
+      if (!['investor', 'startup'].includes(req.user.role)) return next();
+      const sub = req.user.subscription;
+      const active = sub?.status === 'active' && sub?.endDate && new Date(sub.endDate) > new Date();
+      if (!active) {
+        return res.status(403).json({ message: 'subscription_required' });
+      }
+      next();
+    });
+  } catch (error) {
+    res.status(401).json({ message: 'Authorization failed' });
+  }
+};
+
 const adminAuth = async (req, res, next) => {
   try {
     await auth(req, res, () => {
@@ -36,4 +52,4 @@ const adminAuth = async (req, res, next) => {
   }
 };
 
-export { auth, adminAuth };
+export { auth, adminAuth, requireSubscription };

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSnackbar } from '../context/SnackbarContext';
 import { useErrorHandler, validateEmail } from '../utils/errorHandler';
-import { Eye, EyeOff, Mail, Lock, User, Briefcase } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, Briefcase, Clock } from 'lucide-react';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -18,6 +18,7 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [pendingApproval, setPendingApproval] = useState(false);
   
   const { register, user, loading: authLoading } = useAuth();
   const { showError, showSuccess } = useSnackbar();
@@ -72,12 +73,14 @@ const Register = () => {
     }
 
     setLoading(true);
-    
+
     try {
-      const success = await register(formData);
-      if (success) {
+      const result = await register(formData);
+      if (result?.pendingApproval) {
+        setPendingApproval(true);
+      } else if (result?.success) {
         showSuccess('Account created successfully!');
-        navigate('/dashboard');
+        navigate(formData.role === 'investor' ? '/subscribe' : '/dashboard');
       }
     } catch (error) {
       handleError(error, 'Registration failed. Please try again.');
@@ -91,6 +94,28 @@ const Register = () => {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (pendingApproval) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4">
+        <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Clock className="h-8 w-8 text-yellow-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Submitted!</h2>
+          <p className="text-gray-600 mb-6">
+            Your startup account is pending admin approval. You will be able to log in once an admin reviews and approves your registration.
+          </p>
+          <Link
+            to="/login"
+            className="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all"
+          >
+            Back to Login
+          </Link>
+        </div>
       </div>
     );
   }
@@ -168,17 +193,7 @@ const Register = () => {
                   />
                   <span className="text-sm font-medium">Startup</span>
                 </label>
-                <label className="flex items-center p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-                  <input
-                    type="radio"
-                    name="role"
-                    value="admin"
-                    checked={formData.role === 'admin'}
-                    onChange={handleChange}
-                    className="mr-3"
-                  />
-                  <span className="text-sm font-medium">Admin</span>
-                </label>
+                
               </div>
             </div>
 

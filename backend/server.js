@@ -28,6 +28,7 @@ import investmentRoutes from './routes/investments.js';
 import chatRoutes from './routes/chat.js';
 import adminRoutes from './routes/admin.js';
 import statsRoutes from './routes/stats.js';
+import subscriptionRoutes from './routes/subscriptions.js';
 
 // Import models
 import Chat from './models/Chat.js';
@@ -69,6 +70,7 @@ app.use('/api/investments', investmentRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/subscriptions', subscriptionRoutes);
 
 // Socket.io authentication middleware
 io.use(async (socket, next) => {

@@ -1,11 +1,11 @@
 import express from 'express';
 import Chat from '../models/Chat.js';
-import { auth } from '../middleware/auth.js';
+import { auth, requireSubscription } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // Get user's chats
-router.get('/', auth, async (req, res) => {
+router.get('/', requireSubscription, async (req, res) => {
   try {
     const chats = await Chat.find({
       participants: req.user._id
@@ -22,7 +22,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Get or create chat
-router.post('/create', auth, async (req, res) => {
+router.post('/create', requireSubscription, async (req, res) => {
   try {
     const { participantId, campaignId } = req.body;
 
@@ -52,7 +52,7 @@ router.post('/create', auth, async (req, res) => {
 });
 
 // Get chat messages
-router.get('/:chatId/messages', auth, async (req, res) => {
+router.get('/:chatId/messages', requireSubscription, async (req, res) => {
   try {
     const chat = await Chat.findById(req.params.chatId)
       .populate('participants', 'name company role')
@@ -75,7 +75,7 @@ router.get('/:chatId/messages', auth, async (req, res) => {
 });
 
 // Send message
-router.post('/:chatId/messages', auth, async (req, res) => {
+router.post('/:chatId/messages', requireSubscription, async (req, res) => {
   try {
     const { content } = req.body;
     

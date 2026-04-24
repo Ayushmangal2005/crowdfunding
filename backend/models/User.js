@@ -40,6 +40,11 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  approvalStatus: {
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'approved'
+  },
   totalInvested: {
     type: Number,
     default: 0
@@ -47,6 +52,12 @@ const userSchema = new mongoose.Schema({
   totalRaised: {
     type: Number,
     default: 0
+  },
+  subscription: {
+    status: { type: String, enum: ['active', 'inactive'], default: 'inactive' },
+    startDate: { type: Date },
+    endDate: { type: Date },
+    orderId: { type: String }
   }
 }, {
   timestamps: true

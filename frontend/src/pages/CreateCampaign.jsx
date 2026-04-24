@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSnackbar } from '../context/SnackbarContext';
 import axios from 'axios';
-import { load } from '@cashfreepayments/cashfree-js';
 import {
   IndianRupee,
   Calendar,
@@ -12,14 +11,11 @@ import {
   Tag
 } from 'lucide-react';
 
-const CASHFREE_MODE = import.meta.env.VITE_CASHFREE_ENV || 'sandbox';
-
 const CreateCampaign = () => {
   const { user } = useAuth();
   const { showSuccess, showError } = useSnackbar();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [feeModal, setFeeModal] = useState(null); // { orderId, paymentSessionId, fee }
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -49,57 +45,19 @@ const CreateCampaign = () => {
     return true;
   };
 
-  // Step 1: validate form and create fee order
   const handleSubmit = async () => {
     if (!validate()) return;
     setLoading(true);
     try {
-      const { data } = await axios.post('/api/campaigns/create-order', {
+      const response = await axios.post('/api/campaigns', {
+        ...formData,
         goalAmount: parseInt(formData.goalAmount),
       });
-      setFeeModal(data); // show fee confirmation modal
+      showSuccess('Campaign created successfully!');
+      navigate(`/campaign/${response.data._id}`);
     } catch (error) {
-      showError(error.response?.data?.message || 'Failed to initiate payment');
+      showError(error.response?.data?.message || 'Failed to create campaign');
     } finally {
-      setLoading(false);
-    }
-  };
-
-  // Step 2: open Cashfree and on success create campaign
-  const handlePayAndCreate = async () => {
-    if (!feeModal) return;
-    setLoading(true);
-    try {
-      const cashfree = await load({ mode: CASHFREE_MODE });
-
-      cashfree.checkout({
-        paymentSessionId: feeModal.paymentSessionId,
-        redirectTarget: '_modal',
-      }).then(async (result) => {
-        if (result.error) {
-          showError(result.error.message || 'Payment failed');
-          setLoading(false);
-          return;
-        }
-
-        if (result.paymentDetails || result.redirect) {
-          try {
-            const response = await axios.post('/api/campaigns', {
-              ...formData,
-              goalAmount: parseInt(formData.goalAmount),
-              orderId: feeModal.orderId,
-            });
-            showSuccess('Campaign created successfully!');
-            setFeeModal(null);
-            navigate(`/campaign/${response.data._id}`);
-          } catch (err) {
-            showError(err.response?.data?.message || 'Failed to create campaign after payment');
-          }
-          setLoading(false);
-        }
-      });
-    } catch (error) {
-      showError('Payment failed. Please try again.');
       setLoading(false);
     }
   };
@@ -250,19 +208,6 @@ const CreateCampaign = () => {
               </div>
             </div>
 
-            {/* Platform fee notice */}
-            {formData.goalAmount && parseInt(formData.goalAmount) >= 1000 && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
-                  <span className="font-semibold">Platform fee:</span> A one-time fee of{' '}
-                  <span className="font-semibold">
-                    ₹{Math.ceil(parseInt(formData.goalAmount) * 0.05).toLocaleString()}
-                  </span>{' '}
-                  (5% of goal) is required to publish your campaign.
-                </p>
-              </div>
-            )}
-
             {/* Actions */}
             <div className="flex items-center justify-between pt-6 border-t border-gray-200">
               <button
@@ -278,51 +223,12 @@ const CreateCampaign = () => {
                 disabled={loading}
                 className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Processing...' : 'Create Campaign'}
+                {loading ? 'Creating...' : 'Create Campaign'}
               </button>
             </div>
           </form>
         </div>
       </div>
-
-      {/* Fee Confirmation Modal */}
-      {feeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Platform Fee Required</h3>
-            <p className="text-gray-600 mb-6">
-              To publish your campaign, a one-time platform fee is charged.
-            </p>
-
-            <div className="bg-gray-50 rounded-lg p-4 mb-6 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Funding Goal</span>
-                <span className="font-medium">₹{parseInt(formData.goalAmount).toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Platform Fee (5%)</span>
-                <span className="font-semibold text-blue-600">₹{feeModal.fee.toLocaleString()}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setFeeModal(null); setLoading(false); }}
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePayAndCreate}
-                disabled={loading}
-                className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 disabled:opacity-50"
-              >
-                {loading ? 'Processing...' : `Pay ₹${feeModal.fee.toLocaleString()} & Create`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
