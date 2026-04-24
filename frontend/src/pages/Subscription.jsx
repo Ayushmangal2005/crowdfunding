@@ -34,7 +34,7 @@ const Subscription = () => {
   const [loading, setLoading] = useState(false);
 
   const isStartup = user?.role === 'startup';
-  const price = isStartup ? 1500 : 999;
+  const price = isStartup ? 50 : 100;
   const features = isStartup ? startupFeatures : investorFeatures;
 
   // Handle redirect back from Cashfree

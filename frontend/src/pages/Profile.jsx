@@ -214,7 +214,7 @@ const Profile = () => {
         {['investor', 'startup'].includes(user.role) && (() => {
           const sub = user.subscription;
           const isActive = sub?.status === 'active' && sub?.endDate && new Date(sub.endDate) > new Date();
-          const price = user.role === 'startup' ? '₹1500/mo' : '₹999/mo';
+          const price = user.role === 'startup' ? '₹50/mo' : '₹100/mo';
           const inactiveText = user.role === 'startup'
             ? 'Subscribe to create campaigns'
             : 'Subscribe to invest in campaigns';
