@@ -4,8 +4,8 @@ import User from '../models/User.js';
 import { auth } from '../middleware/auth.js';
 
 const router = express.Router();
-const INVESTOR_PRICE = 999;
-const STARTUP_PRICE = 1500;
+const INVESTOR_PRICE = 100;
+const STARTUP_PRICE = 50;
 const SUBSCRIPTION_DAYS = 30;
 
 function getCashfreeConfig() {
